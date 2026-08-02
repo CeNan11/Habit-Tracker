@@ -16,7 +16,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
       {/* Animated Top Tag Pill with Hover Zoom */}
       <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-400 shadow-sm animate-float-slow hover:scale-105 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all duration-300 cursor-default">
         <Sparkles className="w-3.5 h-3.5" />
-        <span>Atomic Habits Framework</span>
+        <span>Tiny Changes, Remarkable Results - James Clear</span>
       </div>
 
       {/* Main Animated Title with Text Hover Scale & Glow */}
