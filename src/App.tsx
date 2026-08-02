@@ -229,18 +229,20 @@ export function App() {
   return (
     <div className="min-h-screen bg-[#0b0f17] bg-ambient-glow text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-300">
       
-      {/* Sleek Minimal Header */}
-      <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onOpenAddModal={() => { setEditingHabit(null); setIsModalOpen(true); }}
-        completedTodayCount={completedCountForSelectedDate}
-        totalHabitsCount={habits.length}
-        maxStreak={maxStreak}
-        currentUser={currentUser}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
-        onLogout={handleLogout}
-      />
+      {/* Sleek Minimal Header - Only when logged in */}
+      {currentUser && (
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onOpenAddModal={() => { setEditingHabit(null); setIsModalOpen(true); }}
+          completedTodayCount={completedCountForSelectedDate}
+          totalHabitsCount={habits.length}
+          maxStreak={maxStreak}
+          currentUser={currentUser}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onLogout={handleLogout}
+        />
+      )}
 
       {/* Main Container */}
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-6 space-y-5">
