@@ -21,6 +21,7 @@ import { HabitCard } from './components/HabitCard';
 import { HabitModal } from './components/HabitModal';
 import { AnalyticsView } from './components/AnalyticsView';
 import { QuickLogModal } from './components/QuickLogModal';
+import { LandingHero } from './components/LandingHero';
 import { AuthModal } from './components/AuthModal';
 
 import { 
@@ -29,8 +30,7 @@ import {
   CheckCircle2,
   Calendar,
   ChevronLeft,
-  ChevronRight,
-  Database
+  ChevronRight
 } from 'lucide-react';
 
 export function App() {
@@ -245,137 +245,132 @@ export function App() {
       {/* Main Container */}
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-6 space-y-5">
         
-        {/* Guest Banner Notice if not logged in */}
-        {!currentUser && (
-          <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs flex items-center justify-between gap-3 text-emerald-300 backdrop-blur-md">
-            <div className="flex items-center gap-2">
-              <Database className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Create an account to save your habits securely in your IndexedDB database.</span>
-            </div>
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-[11px] shrink-0 transition-colors cursor-pointer"
-            >
-              Sign In / Register
-            </button>
-          </div>
-        )}
+        {/* LOGGED OUT LANDING HERO VIEW */}
+        {!currentUser ? (
+          <LandingHero
+            onOpenRegister={() => setIsAuthModalOpen(true)}
+            onOpenLogin={() => setIsAuthModalOpen(true)}
+          />
+        ) : (
+          /* LOGGED IN DASHBOARD VIEW */
+          <>
+            {activeTab === 'dashboard' && (
+              <div className="space-y-5">
+                
+                {/* Minimal Date & Progress Card */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-[#131b28]/80 border border-white/5 shadow-xl space-y-3.5 backdrop-blur-md">
+                  
+                  {/* Date Selector Row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-emerald-400" />
+                      <span className="text-base font-bold text-slate-100 tracking-tight">
+                        {formatDisplayDate(selectedDateStr)}
+                      </span>
+                      {!isSelectedDateToday && (
+                        <button 
+                          onClick={() => setSelectedDateStr(todayStr)}
+                          className="text-[11px] px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 font-semibold transition-colors cursor-pointer"
+                        >
+                          Today
+                        </button>
+                      )}
+                    </div>
 
-        {activeTab === 'dashboard' && (
-          <div className="space-y-5">
-            
-            {/* Minimal Date & Progress Card */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-[#131b28]/80 border border-white/5 shadow-xl space-y-3.5 backdrop-blur-md">
-              
-              {/* Date Selector Row */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-emerald-400" />
-                  <span className="text-base font-bold text-slate-100 tracking-tight">
-                    {formatDisplayDate(selectedDateStr)}
-                  </span>
-                  {!isSelectedDateToday && (
-                    <button 
-                      onClick={() => setSelectedDateStr(todayStr)}
-                      className="text-[11px] px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 font-semibold transition-colors cursor-pointer"
+                    {/* Day Prev/Next Controls */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => shiftSelectedDate(-1)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                        title="Previous Day"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => shiftSelectedDate(1)}
+                        disabled={isSelectedDateToday}
+                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          isSelectedDateToday 
+                            ? 'text-slate-600 cursor-not-allowed' 
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        }`}
+                        title="Next Day"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-400 font-medium">Daily Progress</span>
+                      <span className="font-mono font-bold text-emerald-400">
+                        {completedCountForSelectedDate} / {habits.length} ({progressPercentage}%)
+                      </span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden border border-white/5">
+                      <div 
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_12px_rgba(16,185,129,0.5)] transition-all duration-500 ease-out"
+                        style={{ width: `${progressPercentage}%` }}
+                      />
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Quick Search & Add Bar */}
+                {habits.length > 0 && (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search habits..."
+                        className="w-full pl-8 pr-3 py-2 rounded-xl bg-[#131b28]/60 border border-white/5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 transition-all"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Minimal Habit List */}
+                {filteredHabits.length === 0 ? (
+                  <div className="py-12 text-center rounded-2xl bg-[#131b28]/40 border border-white/5 shadow-lg text-slate-400 space-y-3">
+                    <CheckCircle2 className="w-8 h-8 mx-auto text-slate-600" />
+                    <p className="text-xs text-slate-400 font-medium">No habits added yet</p>
+                    <button
+                      onClick={() => { setEditingHabit(null); setIsModalOpen(true); }}
+                      className="px-4 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 inline-flex items-center gap-1 cursor-pointer transition-all"
                     >
-                      Today
+                      <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Add Habit</span>
                     </button>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {filteredHabits.map((habit) => (
+                      <HabitCard
+                        key={habit.id}
+                        habit={habit}
+                        selectedDateStr={selectedDateStr}
+                        onToggleComplete={handleToggleComplete}
+                        onEdit={(h) => { setEditingHabit(h); setIsModalOpen(true); }}
+                        onDelete={handleDeleteHabit}
+                        onOpenQuickLog={(h) => setQuickLogHabit(h)}
+                      />
+                    ))}
+                  </div>
+                )}
 
-                {/* Day Prev/Next Controls */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => shiftSelectedDate(-1)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-                    title="Previous Day"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => shiftSelectedDate(1)}
-                    disabled={isSelectedDateToday}
-                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                      isSelectedDateToday 
-                        ? 'text-slate-600 cursor-not-allowed' 
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                    }`}
-                    title="Next Day"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-medium">Daily Progress</span>
-                  <span className="font-mono font-bold text-emerald-400">
-                    {completedCountForSelectedDate} / {habits.length} ({progressPercentage}%)
-                  </span>
-                </div>
-                <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden border border-white/5">
-                  <div 
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_12px_rgba(16,185,129,0.5)] transition-all duration-500 ease-out"
-                    style={{ width: `${progressPercentage}%` }}
-                  />
-                </div>
-              </div>
-
-            </div>
-
-            {/* Quick Search & Add Bar */}
-            {habits.length > 0 && (
-              <div className="flex items-center justify-between gap-3">
-                <div className="relative flex-1">
-                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search habits..."
-                    className="w-full pl-8 pr-3 py-2 rounded-xl bg-[#131b28]/60 border border-white/5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 transition-all"
-                  />
-                </div>
               </div>
             )}
 
-            {/* Minimal Habit List */}
-            {filteredHabits.length === 0 ? (
-              <div className="py-12 text-center rounded-2xl bg-[#131b28]/40 border border-white/5 shadow-lg text-slate-400 space-y-3">
-                <CheckCircle2 className="w-8 h-8 mx-auto text-slate-600" />
-                <p className="text-xs text-slate-400 font-medium">No habits added yet</p>
-                <button
-                  onClick={() => { setEditingHabit(null); setIsModalOpen(true); }}
-                  className="px-4 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 inline-flex items-center gap-1 cursor-pointer transition-all"
-                >
-                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>Add Habit</span>
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {filteredHabits.map((habit) => (
-                  <HabitCard
-                    key={habit.id}
-                    habit={habit}
-                    selectedDateStr={selectedDateStr}
-                    onToggleComplete={handleToggleComplete}
-                    onEdit={(h) => { setEditingHabit(h); setIsModalOpen(true); }}
-                    onDelete={handleDeleteHabit}
-                    onOpenQuickLog={(h) => setQuickLogHabit(h)}
-                  />
-                ))}
-              </div>
-            )}
-
-          </div>
+            {/* STATS VIEW */}
+            {activeTab === 'analytics' && <AnalyticsView habits={habits} />}
+          </>
         )}
-
-        {/* STATS VIEW */}
-        {activeTab === 'analytics' && <AnalyticsView habits={habits} />}
 
       </main>
 
@@ -416,8 +411,3 @@ export function App() {
 }
 
 export default App;
-
-
-
-
-
