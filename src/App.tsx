@@ -13,7 +13,8 @@ import {
   saveHabit, 
   deleteHabit, 
   loginUser, 
-  registerUser 
+  registerUser,
+  importSyncKey
 } from './services/db';
 
 import { Navbar } from './components/Navbar';
@@ -53,9 +54,28 @@ export function App() {
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [quickLogHabit, setQuickLogHabit] = useState<Habit | null>(null);
 
-  // Load user session & IndexedDB / API on mount
+  // Load user session & IndexedDB / API or Sync URL on mount
   useEffect(() => {
     async function initDB() {
+      // 1. Check if direct URL Sync Token exists (#sync=...)
+      const hash = window.location.hash;
+      if (hash && hash.includes('sync=')) {
+        const syncToken = hash.split('sync=')[1]?.split('&')[0];
+        if (syncToken) {
+          try {
+            const { user, habits: syncedHabits } = await importSyncKey(syncToken);
+            setCurrentUser(user);
+            setHabits(syncedHabits);
+            localStorage.setItem('active_user_id', user.id);
+            window.history.replaceState(null, '', window.location.pathname);
+            return;
+          } catch (e) {
+            console.error('Failed to import account from URL sync link:', e);
+          }
+        }
+      }
+
+      // 2. Check active user session
       const activeUserId = localStorage.getItem('active_user_id');
       if (activeUserId) {
         try {
@@ -78,6 +98,7 @@ export function App() {
 
     initDB();
   }, []);
+
 
   // Auto-sync when window receives focus (for multi-device real-time sync)
   useEffect(() => {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { User } from '../services/db';
 import type { Habit } from '../types/habit';
 import { generateSyncKey } from '../services/db';
-import { KeyRound, Copy, Check, X, Globe, Smartphone, Monitor } from 'lucide-react';
+import { KeyRound, Copy, Check, X, Globe, Smartphone, Monitor, Link as LinkIcon } from 'lucide-react';
 
 interface SyncKeyModalProps {
   isOpen: boolean;
@@ -17,16 +17,24 @@ export const SyncKeyModal: React.FC<SyncKeyModalProps> = ({
   currentUser,
   habits
 }) => {
-  const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   if (!isOpen || !currentUser) return null;
 
   const syncKey = generateSyncKey(currentUser, habits);
+  const syncLink = `${window.location.origin}${window.location.pathname}#sync=${syncKey}`;
 
-  const handleCopy = () => {
+  const handleCopyKey = () => {
     navigator.clipboard.writeText(syncKey);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    setCopiedKey(true);
+    setTimeout(() => setCopiedKey(false), 2500);
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(syncLink);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
   };
 
   return (
@@ -57,6 +65,26 @@ export const SyncKeyModal: React.FC<SyncKeyModalProps> = ({
           </p>
         </div>
 
+        {/* One-Click Direct Link Action */}
+        <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-300">
+              <LinkIcon className="w-4 h-4 text-emerald-400" />
+              <span>One-Click Sync Link</span>
+            </div>
+            <button
+              onClick={handleCopyLink}
+              className="px-3 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
+            >
+              {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedLink ? 'Copied Link!' : 'Copy Link'}</span>
+            </button>
+          </div>
+          <p className="text-[11px] text-emerald-300/80 leading-snug">
+            Open this URL on your phone or second device to automatically sign in with zero setup!
+          </p>
+        </div>
+
         {/* Sync Key Box */}
         <div className="space-y-2">
           <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
@@ -65,37 +93,37 @@ export const SyncKeyModal: React.FC<SyncKeyModalProps> = ({
           <div className="relative">
             <textarea
               readOnly
-              rows={3}
+              rows={2}
               value={syncKey}
               className="w-full p-3 pr-12 rounded-2xl bg-white/5 border border-white/10 text-slate-300 text-xs font-mono select-all focus:outline-none resize-none"
             />
             <button
-              onClick={handleCopy}
-              className="absolute right-3 top-3 p-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 transition-colors cursor-pointer"
+              onClick={handleCopyKey}
+              className="absolute right-3 top-3 p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 transition-colors cursor-pointer"
               title="Copy Sync Key"
             >
-              {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+              {copiedKey ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
             </button>
           </div>
 
-          {copied && (
+          {copiedKey && (
             <p className="text-xs text-emerald-400 font-medium flex items-center gap-1.5 animate-fadeIn">
               <Check className="w-3.5 h-3.5" />
-              <span>Copied to clipboard!</span>
+              <span>Key copied to clipboard!</span>
             </p>
           )}
         </div>
 
         {/* How to use */}
-        <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-2.5 text-xs text-slate-300">
+        <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 space-y-2 text-xs text-slate-300">
           <h4 className="font-bold text-slate-200 flex items-center gap-2">
             <KeyRound className="w-4 h-4 text-emerald-400" />
             How to link to another device:
           </h4>
-          <ol className="space-y-1.5 list-decimal list-inside text-slate-400 text-[11px] leading-relaxed">
-            <li>Open HabitTracker on your second device (<Monitor className="w-3 h-3 inline mx-0.5 text-slate-300" /> or <Smartphone className="w-3 h-3 inline mx-0.5 text-slate-300" />).</li>
-            <li>Click <strong className="text-slate-200">Sign In</strong>, then choose the <strong className="text-emerald-400">Sync Key</strong> tab.</li>
-            <li>Paste this key and click <strong className="text-emerald-400">Import & Link Account</strong>.</li>
+          <ol className="space-y-1 list-decimal list-inside text-slate-400 text-[11px] leading-relaxed">
+            <li>Send the <strong className="text-emerald-400">One-Click Link</strong> or open HabitTracker on your second device (<Monitor className="w-3 h-3 inline mx-0.5 text-slate-300" /> / <Smartphone className="w-3 h-3 inline mx-0.5 text-slate-300" />).</li>
+            <li>If entering manually: Click <strong className="text-slate-200">Sign In</strong> &rarr; <strong className="text-emerald-400">Sync Key</strong>.</li>
+            <li>Paste your key and click <strong className="text-emerald-400">Import & Link Account</strong>.</li>
           </ol>
         </div>
 
@@ -113,3 +141,4 @@ export const SyncKeyModal: React.FC<SyncKeyModalProps> = ({
     </div>
   );
 };
+
