@@ -322,7 +322,7 @@ export async function getUserById(userId: string): Promise<User | null> {
 
 export async function getUserHabits(userId: string): Promise<Habit[]> {
   try {
-    const res = await fetch(`/api/habits/${userId}`);
+    const res = await fetch(`/api/habits/${userId}?t=${Date.now()}`, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.habits)) {
@@ -335,6 +335,7 @@ export async function getUserHabits(userId: string): Promise<Habit[]> {
   }
   return getUserHabitsDB(userId);
 }
+
 
 export async function saveHabit(userId: string, habit: Habit): Promise<void> {
   await saveHabitDB(userId, habit);

@@ -100,22 +100,39 @@ export function App() {
   }, []);
 
 
-  // Auto-sync when window receives focus (for multi-device real-time sync)
+  // Real-time automatic background polling & focus sync across devices
   useEffect(() => {
-    const handleFocus = async () => {
-      if (currentUser?.id) {
-        try {
-          const refreshedHabits = await getUserHabits(currentUser.id);
-          setHabits(refreshedHabits);
-        } catch (e) {
-          // ignore focus fetch error
-        }
+    if (!currentUser?.id) return;
+
+    // Helper to fetch and compare latest habits
+    const fetchLatestHabits = async () => {
+      try {
+        const latestHabits = await getUserHabits(currentUser.id);
+        setHabits((prevHabits) => {
+          // Compare JSON stringified states to avoid re-rendering if unchanged
+          if (JSON.stringify(prevHabits) !== JSON.stringify(latestHabits)) {
+            return latestHabits;
+          }
+          return prevHabits;
+        });
+      } catch (e) {
+        // ignore network poll errors silently
       }
     };
 
+    // 1. Instant sync on tab/window focus
+    const handleFocus = () => fetchLatestHabits();
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+
+    // 2. Continuous 3-second background polling loop
+    const pollInterval = setInterval(fetchLatestHabits, 3000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(pollInterval);
+    };
   }, [currentUser]);
+
 
   // Auth Action Handlers
   const handleLoginClick = async (username: string, pass: string) => {
