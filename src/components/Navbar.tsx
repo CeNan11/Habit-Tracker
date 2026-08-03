@@ -7,10 +7,11 @@ import {
   Plus,
   Flame,
   CheckCircle2,
-  Sparkles,
   User as UserIcon,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  KeyRound,
+  Globe
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -22,6 +23,7 @@ interface NavbarProps {
   maxStreak: number;
   currentUser: User | null;
   onOpenAuthModal: () => void;
+  onOpenSyncKeyModal?: () => void;
   onLogout: () => void;
 }
 
@@ -34,6 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   maxStreak,
   currentUser,
   onOpenAuthModal,
+  onOpenSyncKeyModal,
   onLogout
 }) => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -57,8 +60,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-1.5">
               <h1 className="font-bold text-sm sm:text-base text-slate-100 tracking-tight leading-none">Habits</h1>
               <span className="hidden xs:flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-medium text-emerald-400">
-                <Sparkles className="w-2.5 h-2.5" />
-                DB
+                <Globe className="w-2.5 h-2.5" />
+                Synced
               </span>
             </div>
             <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 font-medium">{todayFormatted}</p>
@@ -128,14 +131,28 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* User Account Dropdown */}
               {showUserDropdown && (
-                <div className="absolute right-0 mt-2 w-44 bg-[#131b28] border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 animate-fadeIn">
+                <div className="absolute right-0 mt-2 w-48 bg-[#131b28] border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 animate-fadeIn space-y-1">
                   <div className="px-2.5 py-2 border-b border-white/5">
                     <p className="text-xs font-bold text-slate-100 truncate">{currentUser.username}</p>
-                    <p className="text-[10px] text-emerald-400 font-mono mt-0.5">DB Account Active</p>
+                    <p className="text-[10px] text-emerald-400 font-mono mt-0.5 flex items-center gap-1">
+                      <Globe className="w-2.5 h-2.5" />
+                      Cross-Device Active
+                    </p>
                   </div>
+                  
+                  {onOpenSyncKeyModal && (
+                    <button
+                      onClick={() => { setShowUserDropdown(false); onOpenSyncKeyModal(); }}
+                      className="w-full px-2.5 py-1.5 text-left text-xs text-emerald-300 hover:bg-emerald-500/10 rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <KeyRound className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Device Sync Key</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => { setShowUserDropdown(false); onLogout(); }}
-                    className="w-full mt-1 px-2.5 py-1.5 text-left text-xs text-rose-400 hover:bg-rose-500/10 rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
+                    className="w-full px-2.5 py-1.5 text-left text-xs text-rose-400 hover:bg-rose-500/10 rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     <span>Log Out</span>
@@ -167,6 +184,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     </header>
   );
 };
+
 
 
 

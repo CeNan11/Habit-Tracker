@@ -8,12 +8,12 @@ import {
 
 import type { User } from './services/db';
 import { 
-  getUserByIdDB, 
-  getUserHabitsDB, 
-  saveHabitDB, 
-  deleteHabitDB, 
-  loginUserDB, 
-  registerUserDB 
+  getUserById, 
+  getUserHabits, 
+  saveHabit, 
+  deleteHabit, 
+  loginUser, 
+  registerUser 
 } from './services/db';
 
 import { Navbar } from './components/Navbar';
@@ -23,6 +23,7 @@ import { AnalyticsView } from './components/AnalyticsView';
 import { QuickLogModal } from './components/QuickLogModal';
 import { LandingHero } from './components/LandingHero';
 import { AuthModal } from './components/AuthModal';
+import { SyncKeyModal } from './components/SyncKeyModal';
 
 import { 
   Plus, 
@@ -41,6 +42,7 @@ export function App() {
   // User Account & Database State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isSyncKeyModalOpen, setIsSyncKeyModalOpen] = useState(false);
 
   // Date selection state (defaults to Today YYYY-MM-DD)
   const todayStr = getTodayDateString();
@@ -51,21 +53,21 @@ export function App() {
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [quickLogHabit, setQuickLogHabit] = useState<Habit | null>(null);
 
-  // Load user session & IndexedDB on mount
+  // Load user session & IndexedDB / API on mount
   useEffect(() => {
     async function initDB() {
       const activeUserId = localStorage.getItem('active_user_id');
       if (activeUserId) {
         try {
-          const user = await getUserByIdDB(activeUserId);
+          const user = await getUserById(activeUserId);
           if (user) {
             setCurrentUser(user);
-            const userHabits = await getUserHabitsDB(user.id);
+            const userHabits = await getUserHabits(user.id);
             setHabits(userHabits);
             return;
           }
         } catch (e) {
-          console.error('Failed to load user from IndexedDB:', e);
+          console.error('Failed to load user:', e);
         }
       }
       
@@ -77,16 +79,33 @@ export function App() {
     initDB();
   }, []);
 
+  // Auto-sync when window receives focus (for multi-device real-time sync)
+  useEffect(() => {
+    const handleFocus = async () => {
+      if (currentUser?.id) {
+        try {
+          const refreshedHabits = await getUserHabits(currentUser.id);
+          setHabits(refreshedHabits);
+        } catch (e) {
+          // ignore focus fetch error
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [currentUser]);
+
   // Auth Action Handlers
   const handleLoginClick = async (username: string, pass: string) => {
-    const { user, habits: userHabits } = await loginUserDB(username, pass);
+    const { user, habits: userHabits } = await loginUser(username, pass);
     setCurrentUser(user);
     setHabits(userHabits);
     localStorage.setItem('active_user_id', user.id);
   };
 
   const handleRegisterClick = async (username: string, pass: string) => {
-    const { user, habits: userHabits } = await registerUserDB(username, pass);
+    const { user, habits: userHabits } = await registerUser(username, pass);
     setCurrentUser(user);
     setHabits(userHabits);
     localStorage.setItem('active_user_id', user.id);
@@ -116,7 +135,7 @@ export function App() {
       };
 
       if (currentUser) {
-        saveHabitDB(currentUser.id, modifiedHabit);
+        saveHabit(currentUser.id, modifiedHabit);
       }
       return modifiedHabit;
     });
@@ -131,7 +150,7 @@ export function App() {
       const updated = habits.map((h) => (h.id === editingHabit.id ? updatedHabit : h));
       setHabits(updated);
       if (currentUser) {
-        await saveHabitDB(currentUser.id, updatedHabit);
+        await saveHabit(currentUser.id, updatedHabit);
       }
       setEditingHabit(null);
     } else {
@@ -154,7 +173,7 @@ export function App() {
       const updated = [newHabit, ...habits];
       setHabits(updated);
       if (currentUser) {
-        await saveHabitDB(currentUser.id, newHabit);
+        await saveHabit(currentUser.id, newHabit);
       }
     }
   };
@@ -164,7 +183,7 @@ export function App() {
     const updated = habits.filter((h) => h.id !== habitId);
     setHabits(updated);
     if (currentUser) {
-      await deleteHabitDB(habitId);
+      await deleteHabit(habitId);
     }
   };
 
@@ -186,7 +205,7 @@ export function App() {
       };
 
       if (currentUser) {
-        saveHabitDB(currentUser.id, updatedHabit);
+        saveHabit(currentUser.id, updatedHabit);
       }
       return updatedHabit;
     });
@@ -240,6 +259,7 @@ export function App() {
           maxStreak={maxStreak}
           currentUser={currentUser}
           onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onOpenSyncKeyModal={() => setIsSyncKeyModalOpen(true)}
           onLogout={handleLogout}
         />
       )}
@@ -392,6 +412,14 @@ export function App() {
         onRegisterClick={handleRegisterClick}
       />
 
+      {/* Cross-Device Sync Key Modal */}
+      <SyncKeyModal
+        isOpen={isSyncKeyModalOpen}
+        onClose={() => setIsSyncKeyModalOpen(false)}
+        currentUser={currentUser}
+        habits={habits}
+      />
+
       {/* Habit Create / Edit Modal */}
       <HabitModal
         isOpen={isModalOpen}
@@ -413,3 +441,4 @@ export function App() {
 }
 
 export default App;
+
