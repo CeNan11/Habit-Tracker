@@ -69,6 +69,17 @@ export const getPastDates = (daysCount: number): string[] => {
   return dates;
 };
 
+export const parseDateString = (dateStr: string): Date => {
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    return new Date(year, month, day);
+  }
+  return new Date(dateStr);
+};
+
 export const calculateStreak = (completedDates: string[]): { current: number; longest: number } => {
   if (!completedDates || completedDates.length === 0) {
     return { current: 0, longest: 0 };
@@ -113,7 +124,7 @@ export const calculateStreak = (completedDates: string[]): { current: number; lo
   let tempStreak = 0;
   
   if (sortedDates.length > 0) {
-    const dateObjs = sortedDates.map(d => new Date(d)).sort((a, b) => a.getTime() - b.getTime());
+    const dateObjs = sortedDates.map(d => parseDateString(d)).sort((a, b) => a.getTime() - b.getTime());
     tempStreak = 1;
     longest = 1;
 
@@ -121,7 +132,7 @@ export const calculateStreak = (completedDates: string[]): { current: number; lo
       const prev = dateObjs[i - 1];
       const curr = dateObjs[i];
       const diffTime = Math.abs(curr.getTime() - prev.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
       if (diffDays === 1) {
         tempStreak++;

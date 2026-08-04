@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Habit } from '../types/habit';
-import { getPastDates, calculateStreak, getTodayDateString } from '../utils/habitUtils';
+import { getPastDates, calculateStreak, getTodayDateString, parseDateString } from '../utils/habitUtils';
 import { Calendar, Flame, CheckCircle2, Award } from 'lucide-react';
 
 interface AnalyticsViewProps {
@@ -94,7 +94,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ habits }) => {
           <div className="grid grid-flow-col grid-rows-7 gap-1.5 min-w-[540px] pt-1">
             {past84Days.map((dateStr) => {
               const count = dailyCompletionsMap[dateStr] || 0;
-              const dateObj = new Date(dateStr);
+              const dateObj = parseDateString(dateStr);
               const dayLabel = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
               return (

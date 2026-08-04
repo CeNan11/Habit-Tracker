@@ -136,7 +136,21 @@ export async function saveAllUserHabitsDB(userId: string, habits: Habit[]): Prom
   return new Promise((resolve, reject) => {
     const tx = db.transaction('habits', 'readwrite');
     const store = tx.objectStore('habits');
-    habits.forEach(h => store.put({ ...h, userId }));
+    const index = store.index('userId');
+    const getReq = index.getAll(userId);
+
+    getReq.onsuccess = () => {
+      const existingInDB: Habit[] = getReq.result || [];
+      const newHabitIds = new Set(habits.map(h => h.id));
+
+      for (const oldHabit of existingInDB) {
+        if (!newHabitIds.has(oldHabit.id)) {
+          store.delete(oldHabit.id);
+        }
+      }
+
+      habits.forEach(h => store.put({ ...h, userId }));
+    };
 
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -260,7 +274,6 @@ export async function registerUser(username: string, password: string): Promise<
 
     return { user: data.user, habits: data.habits };
   } catch (err: any) {
-    // If explicit user validation error from server (e.g. username exists), throw it directly
     if (err.message && err.message.includes('Username already exists')) {
       throw err;
     }
@@ -279,7 +292,6 @@ export async function loginUser(username: string, password: string): Promise<{ u
 
     const data = await res.json();
     if (!res.ok) {
-      // If server returned specific account/password error, check local DB fallback
       if (res.status === 404 || res.status === 401) {
         try {
           return await loginUserDB(username, password);
@@ -305,6 +317,13 @@ export async function loginUser(username: string, password: string): Promise<{ u
 }
 
 export async function getUserById(userId: string): Promise<User | null> {
+  let localUser: User | null = null;
+  try {
+    localUser = await getUserByIdDB(userId);
+  } catch (e) {
+    // ignore error
+  }
+
   try {
     const res = await fetch(`/api/users/${userId}`);
     if (res.ok) {
@@ -317,23 +336,83 @@ export async function getUserById(userId: string): Promise<User | null> {
   } catch (e) {
     // fallback below
   }
-  return getUserByIdDB(userId);
+
+  if (localUser) {
+    // Sync local user + habits to server so server re-populates if wiped
+    getUserHabitsDB(userId).then((habits) => {
+      syncLocalWithServer(localUser!, habits).catch(() => {});
+    }).catch(() => {});
+    return localUser;
+  }
+
+  return null;
 }
 
 export async function getUserHabits(userId: string): Promise<Habit[]> {
+  let localHabits: Habit[] = [];
+  try {
+    localHabits = await getUserHabitsDB(userId);
+  } catch (e) {
+    console.warn('Failed to get local habits from IndexedDB:', e);
+  }
+
   try {
     const res = await fetch(`/api/habits/${userId}?t=${Date.now()}`, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.habits)) {
-        await saveAllUserHabitsDB(userId, data.habits);
-        return data.habits;
+        const serverHabits: Habit[] = data.habits;
+
+        if (localHabits.length === 0) {
+          if (serverHabits.length > 0) {
+            await saveAllUserHabitsDB(userId, serverHabits);
+          }
+          return serverHabits;
+        }
+
+        if (serverHabits.length === 0 && localHabits.length > 0) {
+          await saveAllUserHabitsDB(userId, localHabits);
+          syncLocalWithServer({ id: userId } as User, localHabits).catch(() => {});
+          return localHabits;
+        }
+
+        const mergedMap = new Map<string, Habit>();
+
+        for (const lh of localHabits) {
+          mergedMap.set(lh.id, lh);
+        }
+
+        for (const sh of serverHabits) {
+          const lh = mergedMap.get(sh.id);
+          if (!lh) {
+            mergedMap.set(sh.id, sh);
+          } else {
+            const allDates = Array.from(new Set([...(lh.completedDates || []), ...(sh.completedDates || [])]));
+            const mergedLogs = { ...(lh.logs || {}), ...(sh.logs || {}) };
+            mergedMap.set(sh.id, {
+              ...lh,
+              ...sh,
+              completedDates: allDates,
+              logs: mergedLogs,
+            });
+          }
+        }
+
+        const mergedHabits = Array.from(mergedMap.values());
+        await saveAllUserHabitsDB(userId, mergedHabits);
+
+        if (localHabits.some(lh => !serverHabits.some(sh => sh.id === lh.id))) {
+          syncLocalWithServer({ id: userId } as User, mergedHabits).catch(() => {});
+        }
+
+        return mergedHabits;
       }
     }
   } catch (e) {
-    // fallback below
+    console.warn('Failed to fetch server habits, falling back to local IndexedDB:', e);
   }
-  return getUserHabitsDB(userId);
+
+  return localHabits;
 }
 
 

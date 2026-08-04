@@ -3,7 +3,9 @@ import type { Habit, ViewTab } from './types/habit';
 import { 
   calculateStreak, 
   getTodayDateString,
-  loadHabitsFromStorage
+  loadHabitsFromStorage,
+  saveHabitsToStorage,
+  parseDateString
 } from './utils/habitUtils';
 
 import type { User } from './services/db';
@@ -14,7 +16,9 @@ import {
   deleteHabit, 
   loginUser, 
   registerUser,
-  importSyncKey
+  importSyncKey,
+  saveAllUserHabitsDB,
+  syncLocalWithServer
 } from './services/db';
 
 import { Navbar } from './components/Navbar';
@@ -108,13 +112,18 @@ export function App() {
     const fetchLatestHabits = async () => {
       try {
         const latestHabits = await getUserHabits(currentUser.id);
-        setHabits((prevHabits) => {
-          // Compare JSON stringified states to avoid re-rendering if unchanged
-          if (JSON.stringify(prevHabits) !== JSON.stringify(latestHabits)) {
-            return latestHabits;
-          }
-          return prevHabits;
-        });
+        if (latestHabits) {
+          setHabits((prevHabits) => {
+            // If server returned empty array while prevHabits has items, keep prevHabits to avoid wipe
+            if (latestHabits.length === 0 && prevHabits.length > 0) {
+              return prevHabits;
+            }
+            if (JSON.stringify(prevHabits) !== JSON.stringify(latestHabits)) {
+              return latestHabits;
+            }
+            return prevHabits;
+          });
+        }
       } catch (e) {
         // ignore network poll errors silently
       }
@@ -138,14 +147,37 @@ export function App() {
   const handleLoginClick = async (username: string, pass: string) => {
     const { user, habits: userHabits } = await loginUser(username, pass);
     setCurrentUser(user);
-    setHabits(userHabits);
+
+    // If account has no habits yet but guest habits exist in local storage, sync them to user
+    let habitsToUse = userHabits;
+    const guestHabits = loadHabitsFromStorage();
+    if (userHabits.length === 0 && guestHabits.length > 0) {
+      habitsToUse = guestHabits.map(h => ({ ...h, userId: user.id }));
+      await saveAllUserHabitsDB(user.id, habitsToUse);
+      await syncLocalWithServer(user, habitsToUse);
+    }
+
+    setHabits(habitsToUse);
     localStorage.setItem('active_user_id', user.id);
   };
 
   const handleRegisterClick = async (username: string, pass: string) => {
     const { user, habits: userHabits } = await registerUser(username, pass);
     setCurrentUser(user);
-    setHabits(userHabits);
+
+    // If guest habits exist in local storage, merge them into the new user account
+    let habitsToUse = userHabits;
+    const guestHabits = loadHabitsFromStorage();
+    if (guestHabits.length > 0) {
+      const mergedMap = new Map<string, Habit>();
+      userHabits.forEach(h => mergedMap.set(h.id, h));
+      guestHabits.forEach(h => mergedMap.set(h.id, { ...h, userId: user.id }));
+      habitsToUse = Array.from(mergedMap.values());
+      await saveAllUserHabitsDB(user.id, habitsToUse);
+      await syncLocalWithServer(user, habitsToUse);
+    }
+
+    setHabits(habitsToUse);
     localStorage.setItem('active_user_id', user.id);
   };
 
@@ -179,6 +211,7 @@ export function App() {
     });
 
     setHabits(updated);
+    saveHabitsToStorage(updated);
   };
 
   // Save or Edit Habit
@@ -187,6 +220,7 @@ export function App() {
       const updatedHabit = { ...editingHabit, ...habitData } as Habit;
       const updated = habits.map((h) => (h.id === editingHabit.id ? updatedHabit : h));
       setHabits(updated);
+      saveHabitsToStorage(updated);
       if (currentUser) {
         await saveHabit(currentUser.id, updatedHabit);
       }
@@ -196,20 +230,21 @@ export function App() {
         id: `habit_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
         userId: currentUser?.id,
         name: habitData.name || 'New Habit',
-        category: 'personal',
-        identityStatement: '',
-        twoMinuteVersion: '',
-        cue: '',
+        category: habitData.category || 'personal',
+        identityStatement: habitData.identityStatement || '',
+        twoMinuteVersion: habitData.twoMinuteVersion || '',
+        cue: habitData.cue || '',
         timeOfDay: habitData.timeOfDay || '',
-        frequency: 'daily',
+        frequency: habitData.frequency || 'daily',
         color: habitData.color || '#10b981',
         createdAt: new Date().toISOString(),
         completedDates: [],
-        frictionScore: 1,
+        frictionScore: habitData.frictionScore || 1,
         logs: {},
       };
       const updated = [newHabit, ...habits];
       setHabits(updated);
+      saveHabitsToStorage(updated);
       if (currentUser) {
         await saveHabit(currentUser.id, newHabit);
       }
@@ -220,6 +255,7 @@ export function App() {
   const handleDeleteHabit = async (habitId: string) => {
     const updated = habits.filter((h) => h.id !== habitId);
     setHabits(updated);
+    saveHabitsToStorage(updated);
     if (currentUser) {
       await deleteHabit(habitId);
     }
@@ -249,6 +285,7 @@ export function App() {
     });
 
     setHabits(updated);
+    saveHabitsToStorage(updated);
   };
 
   // Stats calculation for header
@@ -267,7 +304,7 @@ export function App() {
 
   // Date Navigation Helpers
   const shiftSelectedDate = (days: number) => {
-    const current = new Date(selectedDateStr);
+    const current = parseDateString(selectedDateStr);
     current.setDate(current.getDate() + days);
     const year = current.getFullYear();
     const month = String(current.getMonth() + 1).padStart(2, '0');
@@ -279,7 +316,7 @@ export function App() {
 
   const formatDisplayDate = (dateStr: string) => {
     if (dateStr === todayStr) return 'Today';
-    const dateObj = new Date(dateStr);
+    const dateObj = parseDateString(dateStr);
     return dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
